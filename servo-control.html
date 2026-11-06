@@ -1,0 +1,1702 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Пульт манипулятора — управление сервами</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d1117'/%3E%3Cpath d='M14 42a18 18 0 0 1 36 0' fill='none' stroke='%23f5a524' stroke-width='8' stroke-linecap='round'/%3E%3Ccircle cx='32' cy='42' r='5' fill='%233cc8e8'/%3E%3C/svg%3E">
+<meta name="theme-color" content="#0d1117">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+  :root{
+    --bg:#0d1117;
+    --panel:#151b23;
+    --panel-2:#1b2430;
+    --line:#26313d;
+    --text:#e7eef6;
+    --muted:#8a97a6;
+    --s1:#f5a524;
+    --s2:#3cc8e8;
+    --ok:#37d399;
+    --warn:#f0b429;
+    --err:#f26d6d;
+    --font:system-ui,"Segoe UI",Roboto,Arial,sans-serif;
+    --mono:ui-monospace,Consolas,"Cascadia Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:
+      radial-gradient(900px 420px at 82% -12%, rgba(60,200,232,.10), transparent 65%),
+      radial-gradient(700px 380px at 8% 0%, rgba(245,165,36,.09), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font);
+    min-height:100vh;
+    padding:28px 22px 44px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .top{
+    max-width:1120px;margin:0 auto 26px;
+    display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;justify-content:space-between;
+  }
+  h1{font-size:26px;line-height:1.15;margin:0 0 6px;letter-spacing:-.02em;font-weight:650}
+  .sub{margin:0;color:var(--muted);font-size:14px}
+  .status{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);margin-bottom:10px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#4a5765;flex:0 0 auto;transition:background .2s}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 4px rgba(55,211,153,.16)}
+  .dot.init{background:var(--warn);box-shadow:0 0 0 4px rgba(240,180,41,.16)}
+  .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .mode-select{appearance:none;padding:8px 30px 8px 12px;background:#182230 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%238a99ab'/%3E%3C/svg%3E") no-repeat right 10px center;color:var(--text);font:13px system-ui}
+  .wifi-url{width:170px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#0b1016;color:var(--text);font:13px var(--mono)}
+  .wifi-url:focus-visible{outline:2px solid #6ea8ff;outline-offset:2px}
+
+  .btn{
+    font:inherit;font-size:14px;
+    background:var(--panel-2);color:var(--text);
+    border:1px solid var(--line);border-radius:8px;
+    padding:9px 16px;cursor:pointer;
+    transition:border-color .15s,background .15s,transform .05s;
+  }
+  .btn:hover:not(:disabled){border-color:#3a4a5c;background:#202b38}
+  .btn:active:not(:disabled){transform:translateY(1px)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.primary{background:var(--text);color:#0d1117;border-color:var(--text);font-weight:600}
+  .btn.primary:hover:not(:disabled){background:#fff;border-color:#fff}
+  .btn:focus-visible,.range:focus-visible,input[type=text]:focus-visible{outline:2px solid #6ea8ff;outline-offset:2px}
+
+  main{max-width:1120px;margin:0 auto;display:grid;gap:22px}
+  .servos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px}
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),#12181f);
+    border:1px solid var(--line);border-radius:14px;
+    padding:18px 20px 20px;
+    position:relative;overflow:hidden;
+  }
+  .card::before{
+    content:"";position:absolute;inset:0 0 auto 0;height:3px;
+    background:var(--accent,var(--s1));opacity:.85;
+  }
+  .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:6px}
+  .card-title{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .card-port{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  .gauge{width:100%;max-width:230px;display:block;margin:2px auto 0}
+  .gauge .track{fill:none;stroke:#26313d;stroke-width:9;stroke-linecap:round}
+  .gauge .fill{fill:none;stroke:var(--accent,var(--s1));stroke-width:9;stroke-linecap:round;transition:stroke-dashoffset .18s ease}
+  .gauge .needle line{stroke:var(--text);stroke-width:3;stroke-linecap:round}
+  .gauge .needle circle{fill:var(--text)}
+  .gauge .needle{transition:transform .18s ease;transform-box:view-box}
+  .gauge .limit{fill:var(--muted);font:600 9px var(--font);letter-spacing:.08em}
+
+  .readout{display:flex;align-items:flex-end;justify-content:center;gap:4px;margin:-6px 0 12px}
+  .readout .num{font-size:44px;line-height:1;font-weight:650;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .readout .unit{font-size:18px;color:var(--muted);padding-bottom:5px}
+
+  .range{
+    -webkit-appearance:none;appearance:none;width:100%;height:28px;background:transparent;cursor:pointer;margin:0 0 4px;
+  }
+  .range::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:#2a3542}
+  .range::-moz-range-track{height:6px;border-radius:3px;background:#2a3542}
+  .range::-webkit-slider-thumb{
+    -webkit-appearance:none;width:20px;height:20px;border-radius:50%;
+    background:var(--accent,var(--s1));border:3px solid #0d1117;margin-top:-7px;
+    box-shadow:0 0 0 1px var(--accent,var(--s1));
+  }
+  .range::-moz-range-thumb{
+    width:16px;height:16px;border-radius:50%;border:3px solid #0d1117;
+    background:var(--accent,var(--s1));box-shadow:0 0 0 1px var(--accent,var(--s1));
+  }
+  .scale{display:flex;justify-content:space-between;font-family:var(--mono);font-size:11px;color:var(--muted);margin-bottom:14px}
+
+  .row{display:flex;gap:8px;flex-wrap:wrap}
+  .row .btn{flex:1 1 0;min-width:58px;padding:8px 6px;font-size:13px;text-align:center}
+  .row.presets{margin-top:8px}
+  .row.presets .btn{font-family:var(--mono);font-size:12px;color:var(--muted)}
+
+  .console{
+    background:linear-gradient(180deg,var(--panel),#12181f);
+    border:1px solid var(--line);border-radius:14px;padding:18px 20px 16px;
+  }
+  .console h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:600}
+  .cmdbar{display:flex;gap:10px;margin:12px 0 0;flex-wrap:wrap}
+  .cmdbar input[type=text]{
+    flex:1 1 260px;min-width:0;
+    background:#0b1016;color:var(--text);
+    border:1px solid var(--line);border-radius:8px;
+    padding:10px 12px;font-family:var(--mono);font-size:13px;
+  }
+  .cmdbar input::placeholder{color:#5d6b7a}
+
+  .log{
+    background:#0b1016;border:1px solid var(--line);border-radius:10px;
+    padding:12px 14px;height:210px;overflow:auto;
+    font-family:var(--mono);font-size:12.5px;line-height:1.65;
+  }
+  .log-line{display:flex;gap:8px;white-space:pre-wrap;word-break:break-word}
+  .log-line .t{color:#4d5a68;flex:0 0 auto}
+  .log-line.tx .m{color:#9dc4ff}
+  .log-line.rx .m{color:#cfe3d8}
+  .log-line.err .m{color:var(--err)}
+  .log-line.sys .m{color:var(--muted)}
+  .log:empty::after{content:"Пока пусто — подключите плату и подвиньте ползунок.";color:#4d5a68}
+
+  .monitor{
+    background:linear-gradient(180deg,var(--panel),#12181f);
+    border:1px solid var(--line);border-radius:14px;padding:18px 20px 16px;
+  }
+  .monitor h2{
+    font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+    margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .mon-count{
+    font-family:var(--mono);font-size:11px;letter-spacing:0;text-transform:none;color:#7b8a9a;
+    border:1px solid var(--line);border-radius:999px;padding:2px 9px;
+  }
+  .mon-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .mon-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-left:auto}
+  .switch{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
+  .switch input{accent-color:#6ea8ff;margin:0}
+  .mon{
+    background:#0b1016;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;height:260px;overflow:auto;
+    font-family:var(--mono);font-size:12px;line-height:1.6;
+  }
+  .mon-line{display:flex;gap:8px;white-space:pre-wrap;word-break:break-word}
+  .mon-line .t{color:#4d5a68;flex:0 0 auto}
+  .mon-line .dir{
+    flex:0 0 auto;font-size:10.5px;letter-spacing:.08em;border-radius:4px;padding:0 4px;
+    border:1px solid var(--line);color:#7b8a9a;align-self:flex-start;margin-top:2px;
+  }
+  .mon-line.rx .dir{color:var(--ok);border-color:rgba(55,211,153,.35)}
+  .mon-line.tx .dir{color:#6ea8ff;border-color:rgba(110,168,255,.35)}
+  .mon-line .m{color:#cfe3d8;min-width:0}
+  .mon-line.tx .m{color:#9dc4ff}
+  .mon-line.sys .dir{color:#7b8a9a;border-color:var(--line)}
+  .mon-line.sys .m{color:var(--muted)}
+  .mon-line.err .dir{color:var(--err);border-color:rgba(255,107,107,.35)}
+  .mon-line.err .m{color:var(--err)}
+  .mon:empty::after{content:"Здесь появятся все строки с платы — телеметрия и данные датчиков.";color:#4d5a68}
+
+  .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin:12px 0 0}
+  .hint code{font-family:var(--mono);color:#b9c8d8;background:#0b1016;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
+
+  .note{
+    border-left:2px solid var(--s1);
+    padding:2px 0 2px 14px;margin:22px 0 0;max-width:1120px;
+    color:var(--muted);font-size:13px;line-height:1.65;
+  }
+  .note strong{color:var(--text);font-weight:600}
+
+  .sensors{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  .sensor{
+    background:linear-gradient(180deg,var(--panel),#12181f);
+    border:1px solid var(--line);border-radius:12px;
+    padding:14px 16px 12px;display:flex;flex-direction:column;gap:3px;
+  }
+  .sensor-label{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .sensor-value{display:flex;align-items:baseline;gap:4px;font-size:30px;font-weight:650;line-height:1.15;font-variant-numeric:tabular-nums}
+  .sensor-value .unit{font-size:14px;color:var(--muted);font-weight:500}
+  .sensor-value.mono{font-family:var(--mono);font-size:21px;letter-spacing:.03em;font-weight:600}
+  .sensor-foot{font-size:11.5px;color:var(--muted);line-height:1.45}
+  .sensor-foot.warn{color:var(--warn)}
+  .sensor-foot.ok{color:var(--ok)}
+
+  .modal{
+    width:min(600px,92vw);
+    background:linear-gradient(180deg,var(--panel),#12181f);
+    color:var(--text);border:1px solid var(--line);border-radius:16px;
+    padding:22px 24px 20px;margin:auto;
+  }
+  .modal::backdrop{background:rgba(5,8,12,.72)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+  .modal h2{font-size:19px;margin:0;letter-spacing:-.01em}
+  .icon-btn{background:none;border:1px solid transparent;color:var(--muted);font-size:22px;line-height:1;width:34px;height:34px;border-radius:8px;cursor:pointer}
+  .icon-btn:hover{color:var(--text);border-color:var(--line);background:#0f151c}
+  .icon-btn:focus-visible{outline:2px solid #6ea8ff;outline-offset:2px}
+  .modal-lead{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0 0 16px}
+  .modal-lead strong{color:var(--text);font-weight:600}
+  .steps{list-style:none;counter-reset:st;padding:0;margin:0 0 16px;display:grid;gap:12px}
+  .steps li{counter-increment:st;position:relative;padding-left:34px;font-size:13.5px;line-height:1.6}
+  .steps li::before{
+    content:counter(st);position:absolute;left:0;top:1px;width:22px;height:22px;border-radius:50%;
+    background:var(--panel-2);border:1px solid var(--line);color:var(--muted);
+    font-family:var(--mono);font-size:11px;display:grid;place-items:center;
+  }
+  .steps .muted{color:var(--muted);font-family:var(--mono);font-size:12px;margin-left:8px}
+  .chk{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+  .drv-out{
+    font-family:var(--mono);font-size:12.5px;line-height:1.65;
+    background:#0b1016;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;min-height:46px;white-space:pre-wrap;word-break:break-word;color:#cfdae5;
+  }
+  .drv-out .ok{color:var(--ok)}
+  .drv-out .warn{color:var(--warn)}
+  .drv-out .bad{color:var(--err)}
+  .modal-foot{color:var(--muted);font-size:12px;line-height:1.6;margin:12px 0 0}
+  .modal-foot code{font-family:var(--mono);color:#b9c8d8}
+
+  .field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+  .field label{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .field input{
+    background:#0b1016;color:var(--text);
+    border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;font-family:var(--mono);font-size:12.5px;
+  }
+  .field input:focus-visible{outline:2px solid #6ea8ff;outline-offset:2px}
+  .cloud-hint{
+    font-size:12.5px;line-height:1.55;color:var(--muted);
+    background:#0b1016;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;margin-bottom:4px;word-break:break-word;
+  }
+  .cloud-hint.ok{color:var(--ok)}
+  .cloud-hint.bad{color:var(--err)}
+  .cloud-hint.warn{color:var(--warn)}
+  .btn.cloud-on{color:var(--ok);border-color:rgba(55,211,153,.45)}
+
+  @media (max-width:760px){
+    body{padding:20px 14px 36px}
+    h1{font-size:21px}
+    .servos{grid-template-columns:1fr}
+    .sensors{grid-template-columns:repeat(2,minmax(0,1fr))}
+    .sensor{padding:12px 13px 11px}
+    .sensor-value{font-size:26px}
+    .readout .num{font-size:38px}
+    .log{height:180px}
+    .mon{height:200px}
+    .mon-tools{margin-left:0}
+    .top{align-items:flex-start}
+    .actions .btn{flex:1 1 auto}
+  }
+  @media (prefers-reduced-motion:reduce){
+    *{transition:none!important}
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div>
+    <div class="status"><span class="dot" id="dot"></span><span id="statusText">Не подключено</span></div>
+    <h1>Пульт манипулятора</h1>
+    <p class="sub">Две сервы на одной плате. Команды уходят как текст <code style="font-family:var(--mono)">s1 120</code> — по проводу или по Wi-Fi.</p>
+  </div>
+  <div class="actions">
+    <select class="btn mode-select" id="linkMode" aria-label="Способ связи с платой">
+      <option value="usb">USB · провод</option>
+      <option value="wifi">Wi-Fi</option>
+    </select>
+    <input class="wifi-url" id="wifiUrl" type="text" spellcheck="false" autocomplete="off" placeholder="mega.local" aria-label="Адрес Wi-Fi платы" hidden>
+    <button class="btn" id="btnCloud">Облако: выкл</button>
+    <button class="btn" id="btnDriver">Драйвер платы</button>
+    <button class="btn" id="btnDisconnect" disabled>Отключить</button>
+    <button class="btn primary" id="btnConnect">Подключить плату</button>
+  </div>
+</header>
+
+<main>
+  <section class="servos" id="servos" aria-label="Сервы"></section>
+
+  <section class="sensors" aria-label="Показатели платы">
+    <div class="sensor">
+      <div class="sensor-label">Температура</div>
+      <div class="sensor-value"><span id="tVal">--</span><span class="unit">°C</span></div>
+      <div class="sensor-foot" id="tFoot">DHT11 · пин 12</div>
+    </div>
+    <div class="sensor">
+      <div class="sensor-label">Влажность</div>
+      <div class="sensor-value"><span id="hVal">--</span><span class="unit">%</span></div>
+      <div class="sensor-foot" id="hFoot">DHT11 · пин 12</div>
+    </div>
+    <div class="sensor">
+      <div class="sensor-label">ИК-пульт</div>
+      <div class="sensor-value mono" id="irVal">--</div>
+      <div class="sensor-foot" id="irFoot">последняя кнопка</div>
+    </div>
+    <div class="sensor">
+      <div class="sensor-label">Без движения</div>
+      <div class="sensor-value"><span id="idleVal">--</span><span class="unit">с</span></div>
+      <div class="sensor-foot" id="idleFoot">таймер простоя</div>
+    </div>
+  </section>
+
+  <section class="console" aria-label="Монитор порта и командная строка">
+    <h2>Монитор порта · RX / TX <span class="mon-count" id="monCount">0 строк · 0 Б</span></h2>
+    <div class="mon-bar">
+      <div class="mon-tools">
+        <label class="switch"><input type="checkbox" id="monAuto" checked> Автопрокрутка</label>
+        <label class="switch"><input type="checkbox" id="monHex"> HEX</label>
+        <label class="switch"><input type="checkbox" id="monPause"> Пауза</label>
+        <button class="btn" id="monClear">Очистить</button>
+        <button class="btn" id="monSave">Сохранить .txt</button>
+      </div>
+    </div>
+    <div class="mon" id="mon" role="log" aria-live="off"></div>
+    <div class="cmdbar">
+      <input type="text" id="cmdInput" placeholder="s1 120  ·  s2 45  ·  serva angle 90  ·  mb 1" autocomplete="off" spellcheck="false" aria-label="Команда для платы">
+      <button class="btn" id="btnSend">Отправить</button>
+    </div>
+    <p class="hint">
+      В одной ленте видно всё: <code>RX</code> — что пришло от платы (включая телеметрию <code>#S1=…;T=…</code>),
+      <code>TX</code> — что ушло на плату, <code>SYS</code> и <code>ERR</code> — сообщения самой страницы.
+      Команда уходит кнопкой «Отправить» или клавишей <code>Enter</code>, стрелки ↑ и ↓ листают историю.
+      Поддерживаются <code>s1 &lt;угол&gt;</code>, <code>s2 &lt;угол&gt;</code>, <code>serva angle &lt;угол&gt;</code>,
+      а <code>mb &lt;текст&gt;</code> отправляет строку на micro:bit. Диапазон прошивки — 20…170°.
+      «HEX» показывает байты, «Пауза» останавливает вывод, не закрывая порт.
+    </p>
+  </section>
+
+  <p class="note">
+    <strong>Способ связи выбирается сверху:</strong> <code>USB · провод</code> — через Web Serial, плата подключена кабелем;
+    <code>Wi-Fi</code> — через встроенный ESP8266 (Mega+WiFi R3), тогда достаточно указать адрес платы, например
+    <code>mega.local</code> или её IP, и управлять с телефона без проводов.
+    В режиме USB перед подключением закройте Serial Monitor в Arduino IDE — порт может быть открыт только одним приложением.
+    После открытия порта плата перезагружается, поэтому первые ~2,5 секунды команды не отправляются.
+    Данные никуда не уходят, обмен идёт напрямую с платой.
+    Если плата не появляется в списке портов — нажмите «Драйвер платы».
+  </p>
+</main>
+
+<dialog class="modal" id="drvDialog" aria-labelledby="drvTitle">
+  <div class="modal-head">
+    <h2 id="drvTitle">Драйвер Arduino Uno</h2>
+    <button class="icon-btn" id="drvClose" aria-label="Закрыть окно">×</button>
+  </div>
+
+  <p class="modal-lead">
+    Браузер не имеет права ставить драйверы в систему — это делает установщик, который вы запускаете сами.
+    Кнопка ниже отдаёт готовый <strong>install-driver.bat</strong>: он ставит два драйвера сразу — Arduino (ATmega16U2,
+    официальные платы) и CH340 (платы-клоны), затем пересканирует устройства и печатает найденные COM-порты.
+  </p>
+
+  <ol class="steps">
+    <li>
+      <a class="btn primary" id="drvDownload" href="driver/install-driver.bat" download>Скачать установщик</a>
+      <span class="muted" id="drvFileNote">уже лежит рядом: driver\install-driver.bat</span>
+    </li>
+    <li>Правый клик по файлу → «Запуск от имени администратора» → в окне UAC «Да».</li>
+    <li>Вернитесь сюда и нажмите «Проверить плату»: страница покажет, какой драйвер увидела Windows.</li>
+  </ol>
+
+  <div class="chk">
+    <button class="btn" id="drvCheck">Проверить плату</button>
+    <button class="btn" id="drvCopy">Скопировать путь к установщику</button>
+  </div>
+
+  <div class="drv-out" id="drvOut" role="status">Нажмите «Проверить плату», чтобы посмотреть, что видит браузер.</div>
+
+  <p class="modal-foot">
+    Официальному Uno R3 на Windows 10/11 драйвер не нужен — он встроен в систему, плата видна как «Arduino Uno (COMx)».
+    Драйвер CH340 нужен только платам-клонам. Путь к установщику: <code id="drvPath">driver\install-driver.bat</code>.
+  </p>
+</dialog>
+
+<dialog class="modal" id="cloudDialog" aria-labelledby="cloudTitle">
+  <div class="modal-head">
+    <h2 id="cloudTitle">Синхронизация через Firebase</h2>
+    <button class="icon-btn" id="cloudClose" aria-label="Закрыть окно">×</button>
+  </div>
+
+  <p class="modal-lead">
+    Компьютер с платой публикует углы и телеметрию в Realtime Database, телефон читает и пишет те же значения.
+    Служебные данные: <code>cmd/a1</code>, <code>cmd/a2</code> — желаемые углы, <code>state/*</code> — что пришло с платы.
+  </p>
+
+  <div class="field">
+    <label for="cloudUrl">Адрес базы</label>
+    <input type="text" id="cloudUrl" spellcheck="false" autocomplete="off" placeholder="https://имя-default-rtdb.firebaseio.com">
+  </div>
+
+  <div class="field">
+    <label for="cloudPath">Путь в базе</label>
+    <input type="text" id="cloudPath" spellcheck="false" autocomplete="off" placeholder="manipulator">
+  </div>
+
+  <div class="chk">
+    <button class="btn primary" id="cloudApply">Подключить</button>
+    <button class="btn" id="cloudStop">Выключить</button>
+    <button class="btn" id="cloudRules">Скопировать правила</button>
+    <button class="btn" id="cloudUrlCopy">Скопировать адрес</button>
+  </div>
+
+  <div class="cloud-hint" id="cloudHint">Синхронизация выключена — страница работает только с платой.</div>
+
+  <p class="modal-foot">
+    На телефоне откройте копию этой страницы: Web Serial там нет, но ползунки и показания работают через базу.
+    Правила в консоли Firebase: <code>{"rules":{"manipulator":{".read":true,".write":true}}}</code>.
+    Ссылка на базу = доступ к сервам, не публикуйте её.
+  </p>
+</dialog>
+
+<script>
+(function () {
+  "use strict";
+
+  var SERVOS = [
+    { id: 1, title: "Серва 1", accent: "var(--s1)", port: "пин 11" },
+    { id: 2, title: "Серва 2", accent: "var(--s2)", port: "пин 10" }
+  ];
+
+  var ANGLE_MIN = 20;
+  var ANGLE_MAX = 170;
+  var ARC_LEN = null;
+
+  var state = { 1: 90, 2: 90 };
+  var lastSent = { 1: null, 2: null };
+  var pending = { 1: null, 2: null };
+  var lastSendAt = { 1: 0, 2: 0 };
+  var SEND_GAP = 15;
+  var busy = { 1: false, 2: false };
+  var pumpTimers = { 1: null, 2: null };
+  var lastTelemetryAt = 0;
+  var warnedOffline = false;
+  var localTouch = { 1: 0, 2: 0 };
+
+  var CLOUD_DEFAULT_URL = "https://project-787594036322734437-default-rtdb.firebaseio.com";
+  var cloud = {
+    url: "",
+    path: "manipulator",
+    es: null,
+    enabled: false,
+    status: "off",
+    lastCmdPush: 0,
+    cmd: { 1: null, 2: null },
+    timers: { 1: null, 2: null },
+    sawEvent: false,
+    pollErrors: 0,
+    lastLog: 0
+  };
+
+  var IR_NAMES = {
+    "FFA857": "S1 вверх",
+    "FFE01F": "S1 вниз",
+    "FF30CF": "S2 вверх",
+    "FF18E7": "S2 вниз"
+  };
+
+  var port = null;
+  var writer = null;
+  var reader = null;
+  var chain = Promise.resolve();
+  var sendReady = false;
+  var history = [];
+  var historyIndex = -1;
+
+  var el = {
+    servos: document.getElementById("servos"),
+    dot: document.getElementById("dot"),
+    status: document.getElementById("statusText"),
+    connect: document.getElementById("btnConnect"),
+    disconnect: document.getElementById("btnDisconnect"),
+    cmd: document.getElementById("cmdInput"),
+    send: document.getElementById("btnSend"),
+    log: document.getElementById("log"),
+    tVal: document.getElementById("tVal"),
+    tFoot: document.getElementById("tFoot"),
+    hVal: document.getElementById("hVal"),
+    hFoot: document.getElementById("hFoot"),
+    irVal: document.getElementById("irVal"),
+    irFoot: document.getElementById("irFoot"),
+    idleVal: document.getElementById("idleVal"),
+    idleFoot: document.getElementById("idleFoot"),
+    mon: document.getElementById("mon"),
+    monCount: document.getElementById("monCount"),
+    monAuto: document.getElementById("monAuto"),
+    monHex: document.getElementById("monHex"),
+    monPause: document.getElementById("monPause"),
+    monClear: document.getElementById("monClear"),
+    monSave: document.getElementById("monSave"),
+    linkMode: document.getElementById("linkMode"),
+    wifiUrl: document.getElementById("wifiUrl")
+  };
+
+  function clamp(v) {
+    return Math.max(ANGLE_MIN, Math.min(ANGLE_MAX, v));
+  }
+
+  function pad(n) {
+    return n < 10 ? "0" + n : String(n);
+  }
+
+  function stamp() {
+    var d = new Date();
+    return pad(d.getHours()) + ":" + pad(d.getMinutes()) + ":" + pad(d.getSeconds());
+  }
+
+  function logLine(text, kind) {
+    // Всё, что раньше шло в отдельный лог команд, теперь падает в общую ленту.
+    // Строки TX не дублируем: они уже добавлены в монитор через monTx().
+    if (kind !== "tx") monText(kind === "rx" ? "rx" : (kind === "err" ? "err" : "sys"), text);
+    if (!el.log) return;
+    var atBottom = el.log.scrollHeight - el.log.scrollTop - el.log.clientHeight < 40;
+    var row = document.createElement("div");
+    row.className = "log-line " + (kind || "sys");
+    var t = document.createElement("span");
+    t.className = "t";
+    t.textContent = stamp();
+    var m = document.createElement("span");
+    m.className = "m";
+    m.textContent = text;
+    row.appendChild(t);
+    row.appendChild(m);
+    el.log.appendChild(row);
+    while (el.log.children.length > 300) el.log.removeChild(el.log.firstChild);
+    if (atBottom) el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  var MON_DECODER = new TextDecoder("utf-8", { fatal: false });
+  var MON_MAX_NODES = 600;
+  var MON_KEEP_LINES = 2000;
+
+  var mon = {
+    lines: [],
+    queue: [],
+    raw: [],
+    rxBytes: 0,
+    txBytes: 0,
+    paused: false,
+    raf: 0
+  };
+
+  function monDecode(bytes) {
+    try { return MON_DECODER.decode(new Uint8Array(bytes)); }
+    catch (e) { return ""; }
+  }
+
+  function monFeed(u8) {
+    if (!u8 || !u8.length) return;
+    mon.rxBytes += u8.length;
+    var i;
+    for (i = 0; i < u8.length; i++) mon.raw.push(u8[i]);
+    var start = 0;
+    for (i = 0; i < mon.raw.length; i++) {
+      if (mon.raw[i] === 10) {
+        monAdd("rx", mon.raw.slice(start, i));
+        start = i + 1;
+      }
+    }
+    mon.raw = mon.raw.slice(start);
+    if (mon.raw.length > 1024) {
+      monAdd("rx", mon.raw);
+      mon.raw = [];
+    }
+    monCount();
+  }
+
+  function monTx(line) {
+    if (line === null || line === undefined) return;
+    var text = String(line);
+    var bytes = Array.prototype.slice.call(new TextEncoder().encode(text));
+    mon.txBytes += bytes.length + 1;
+    monAdd("tx", bytes);
+  }
+
+  function monAdd(dir, bytes) {
+    var entry = {
+      dir: dir,
+      text: monDecode(bytes).replace(/\r/g, ""),
+      raw: bytes.slice(0, 400),
+      t: stamp()
+    };
+    mon.lines.push(entry);
+    while (mon.lines.length > MON_KEEP_LINES) mon.lines.shift();
+    mon.queue.push(entry);
+    while (mon.queue.length > MON_MAX_NODES) mon.queue.shift();
+    monCount();
+    monSchedule();
+  }
+
+  function monCount() {
+    if (!el.monCount) return;
+    var word = "строк";
+    var n = mon.lines.length % 100;
+    if (n < 11 || n > 14) {
+      if (mon.lines.length % 10 === 1) word = "строка";
+      else if (mon.lines.length % 10 >= 2 && mon.lines.length % 10 <= 4) word = "строки";
+    }
+    el.monCount.textContent = mon.lines.length + " " + word + " · " + (mon.rxBytes + mon.txBytes) + " Б";
+  }
+
+  function monSchedule() {
+    if (mon.raf) return;
+    if (typeof requestAnimationFrame !== "function") {
+      monFlush();
+      return;
+    }
+    mon.raf = requestAnimationFrame(monFlush);
+  }
+
+  function monHexText(bytes) {
+    var out = [];
+    for (var i = 0; i < bytes.length; i++) {
+      var h = bytes[i].toString(16).toUpperCase();
+      out.push(h.length < 2 ? "0" + h : h);
+    }
+    return out.join(" ");
+  }
+
+  function monRow(entry) {
+    var row = document.createElement("div");
+    row.className = "mon-line " + entry.dir;
+    var t = document.createElement("span");
+    t.className = "t";
+    t.textContent = entry.t;
+    var dir = document.createElement("span");
+    dir.className = "dir";
+    dir.textContent = entry.dir === "rx" ? "RX" : entry.dir === "sys" ? "SYS" : entry.dir === "err" ? "ERR" : "TX";
+    var m = document.createElement("span");
+    m.className = "m";
+    m.textContent = el.monHex && el.monHex.checked ? monHexText(entry.raw) : entry.text;
+    row.appendChild(t);
+    row.appendChild(dir);
+    row.appendChild(m);
+    return row;
+  }
+
+  function monFlush() {
+    mon.raf = 0;
+    if (!el.mon) return;
+    if (mon.paused || !mon.queue.length) return;
+    var atBottom = el.mon.scrollHeight - el.mon.scrollTop - el.mon.clientHeight < 40;
+    var frag = document.createDocumentFragment();
+    while (mon.queue.length) frag.appendChild(monRow(mon.queue.shift()));
+    el.mon.appendChild(frag);
+    while (el.mon.children.length > MON_MAX_NODES) el.mon.removeChild(el.mon.firstChild);
+    if (el.monAuto.checked && atBottom) el.mon.scrollTop = el.mon.scrollHeight;
+  }
+
+  function monRenderAll() {
+    if (!el.mon) return;
+    el.mon.innerHTML = "";
+    var frag = document.createDocumentFragment();
+    mon.lines.slice(-MON_MAX_NODES).forEach(function (e) { frag.appendChild(monRow(e)); });
+    el.mon.appendChild(frag);
+    if (el.monAuto.checked) el.mon.scrollTop = el.mon.scrollHeight;
+  }
+
+  function monClear() {
+    mon.lines = [];
+    mon.queue = [];
+    mon.raw = [];
+    mon.rxBytes = 0;
+    mon.txBytes = 0;
+    if (el.mon) el.mon.innerHTML = "";
+    monCount();
+  }
+
+  // ===== СПОСОБ СВЯЗИ: USB (Web Serial) или Wi-Fi (веб-сервер ESP) =====
+  var link = { mode: "usb", base: "", timer: 0, newest: null };
+
+  function linkBase() {
+    var v = (el.wifiUrl && el.wifiUrl.value ? el.wifiUrl.value : "").trim().replace(/\/+$/, "");
+    if (!v) return "";
+    if (!/^https?:\/\//i.test(v)) v = "http://" + v;
+    return v;
+  }
+
+  function monText(dir, text) {
+    monAdd(dir, Array.prototype.slice.call(new TextEncoder().encode(String(text))));
+  }
+
+  function wifiLogPush(list) {
+    if (!list || !list.length) return;
+    var prev = link.newest;
+    link.newest = list[0];
+    if (prev === null) { monText("rx", list[0]); return; }
+    var idx = list.indexOf(prev);
+    if (idx <= 0) return;
+    for (var i = idx - 1; i >= 0; i--) monText("rx", list[i]);
+  }
+
+  function wifiPoll() {
+    if (!link.base) return;
+    fetch(link.base + "/api/state", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d) return;
+        if (d.raw) {
+          parseTelemetry(d.raw);
+          lastTelemetryAt = Date.now();
+        }
+        wifiLogPush(d.log);
+        setConnected(true, "Wi-Fi · " + (d.ip || link.base));
+      })
+      .catch(function () {
+        setConnected(false, "Wi-Fi: нет ответа");
+      });
+  }
+
+  function connectWifi() {
+    link.base = linkBase();
+    if (!link.base) {
+      logLine("Укажите адрес платы, например mega.local или 192.168.1.50", "err");
+      return;
+    }
+    el.connect.disabled = true;
+    logLine("Проверяю " + link.base + " …", "sys");
+    fetch(link.base + "/api/state", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        el.connect.disabled = false;
+        link.newest = null;
+        setConnected(true, "Wi-Fi · " + (d.ip || link.base));
+        logLine("Связь по Wi-Fi: " + link.base + " (плата " + (d.ip || "?") + ")", "sys");
+        if (link.timer) clearInterval(link.timer);
+        link.timer = setInterval(wifiPoll, 600);
+        wifiPoll();
+      })
+      .catch(function (err) {
+        el.connect.disabled = false;
+        setConnected(false, "Wi-Fi: нет ответа");
+        logLine("Не удалось связаться: " + err.message + ". Проверьте адрес, питание платы и общую сеть.", "err");
+      });
+  }
+
+  function wifiStop() {
+    if (link.timer) clearInterval(link.timer);
+    link.timer = 0;
+    link.base = "";
+    link.newest = null;
+  }
+
+  function buildCards() {
+    SERVOS.forEach(function (s) {
+      var card = document.createElement("article");
+      card.className = "card";
+      card.style.setProperty("--accent", s.accent);
+      card.innerHTML =
+        '<div class="card-head">' +
+          '<span class="card-title">' + s.title + '</span>' +
+          '<span class="card-port">' + s.port + '</span>' +
+        '</div>' +
+        '<svg class="gauge" viewBox="0 0 160 132" aria-hidden="true">' +
+          '<path class="track" d="M 20 110 A 60 60 0 0 1 140 110"/>' +
+          '<path class="fill" id="arc-' + s.id + '" d="M 20 110 A 60 60 0 0 1 140 110"/>' +
+          '<g class="needle" id="needle-' + s.id + '">' +
+            '<line x1="80" y1="110" x2="80" y2="62"/>' +
+            '<circle cx="80" cy="110" r="4.5"/>' +
+          '</g>' +
+          '<text class="limit" x="20" y="126" text-anchor="middle">' + ANGLE_MIN + '</text>' +
+          '<text class="limit" x="140" y="126" text-anchor="middle">' + ANGLE_MAX + '</text>' +
+        '</svg>' +
+        '<div class="readout"><span class="num" id="val-' + s.id + '">90</span><span class="unit">°</span></div>' +
+        '<input class="range" type="range" id="range-' + s.id + '" min="' + ANGLE_MIN + '" max="' + ANGLE_MAX + '" step="1" value="90" aria-label="Угол сервы ' + s.id + '">' +
+        '<div class="scale"><span>' + ANGLE_MIN + '°</span><span>' + ANGLE_MAX + '°</span></div>' +
+        '<div class="row">' +
+          '<button class="btn" data-shift="-10" data-target="' + s.id + '" aria-label="' + s.title + ': минус 10 градусов">−10</button>' +
+          '<button class="btn" data-shift="-1" data-target="' + s.id + '" aria-label="' + s.title + ': минус 1 градус">−1</button>' +
+          '<button class="btn" data-shift="1" data-target="' + s.id + '" aria-label="' + s.title + ': плюс 1 градус">+1</button>' +
+          '<button class="btn" data-shift="10" data-target="' + s.id + '" aria-label="' + s.title + ': плюс 10 градусов">+10</button>' +
+        '</div>' +
+        '<div class="row presets">' +
+          '<button class="btn" data-set="20" data-target="' + s.id + '">20°</button>' +
+          '<button class="btn" data-set="90" data-target="' + s.id + '">90°</button>' +
+          '<button class="btn" data-set="170" data-target="' + s.id + '">170°</button>' +
+        '</div>';
+      el.servos.appendChild(card);
+    });
+  }
+
+  function paint(id) {
+    var v = state[id];
+    var num = document.getElementById("val-" + id);
+    var arc = document.getElementById("arc-" + id);
+    var needle = document.getElementById("needle-" + id);
+    var range = document.getElementById("range-" + id);
+
+    num.textContent = String(v);
+    if (range.value !== String(v)) range.value = String(v);
+
+    if (ARC_LEN === null && arc && arc.getTotalLength) ARC_LEN = arc.getTotalLength();
+    if (arc && ARC_LEN) {
+      var t = (v - ANGLE_MIN) / (ANGLE_MAX - ANGLE_MIN);
+      arc.style.strokeDasharray = ARC_LEN + " " + ARC_LEN;
+      arc.style.strokeDashoffset = String(ARC_LEN * (1 - t));
+    }
+    if (needle) {
+      var deg = -90 + ((v - ANGLE_MIN) / (ANGLE_MAX - ANGLE_MIN)) * 180;
+      needle.setAttribute("transform", "rotate(" + deg.toFixed(2) + " 80 110)");
+    }
+  }
+
+  function setAngle(id, value, immediate, fromCloud) {
+    var v = clamp(Math.round(value));
+    state[id] = v;
+    paint(id);
+
+    if (fromCloud) return;
+
+    localTouch[id] = Date.now();
+
+    if (!writer && link.mode !== "wifi" && !cloud.enabled && !warnedOffline) {
+      warnedOffline = true;
+      logLine("Нет подключения: положение запомнится и уйдёт на плату после подключения", "err");
+    }
+
+    if (writer || (link.mode === "wifi" && link.base)) {
+      pending[id] = v;
+      pumpServo(id, immediate);
+    }
+
+    queueCloudCmd(id, v);
+  }
+
+  function writeLine(line) {
+    if (link.mode === "wifi") {
+      if (!link.base) return null;
+      monTx(line);
+      return fetch(link.base + "/api/cmd?c=" + encodeURIComponent(line), { cache: "no-store" });
+    }
+    if (!writer || !sendReady) return null;
+    monTx(line);
+    var p = chain.then(function () { return writer.write(new TextEncoder().encode(line + "\n")); });
+    chain = p.catch(function () {});
+    return p;
+  }
+
+  function pumpServo(id, force) {
+    var v = pending[id];
+    if (v === null) return;
+    if (link.mode !== "wifi" && (!writer || !sendReady)) return;
+
+    if (busy[id] && !force) return;
+
+    var now = Date.now();
+    var wait = (force ? 0 : SEND_GAP) - (now - lastSendAt[id]);
+    if (wait > 0) {
+      if (!pumpTimers[id]) {
+        pumpTimers[id] = setTimeout(function () {
+          pumpTimers[id] = null;
+          pumpServo(id, false);
+        }, wait);
+      }
+      return;
+    }
+
+    lastSendAt[id] = now;
+    lastSent[id] = v;
+    if (pending[id] === v) pending[id] = null;
+
+    busy[id] = true;
+    var pr = writeLine("s" + id + " " + v);
+    if (!pr) { busy[id] = false; return; }
+
+    pr.then(function () {
+      busy[id] = false;
+      if (pending[id] !== null) pumpServo(id, false);
+    }).catch(function () {
+      busy[id] = false;
+    });
+  }
+
+  function flushPending() {
+    pumpServo(1, false);
+    pumpServo(2, false);
+  }
+
+  function send(cmd) {
+    var line = String(cmd).trim();
+    if (!line) return;
+    if (link.mode === "wifi") {
+      if (!link.base) {
+        logLine("Сначала подключитесь по Wi-Fi — команда не отправлена: " + line, "err");
+        return;
+      }
+      monTx(line);
+      fetch(link.base + "/api/cmd?c=" + encodeURIComponent(line), { cache: "no-store" })
+        .then(function () { logLine("→ " + line, "tx"); })
+        .catch(function (err) { logLine("Ошибка Wi-Fi: " + err.message, "err"); });
+      return;
+    }
+    if (!writer) {
+      logLine("Нет подключения — команда не отправлена: " + line, "err");
+      return;
+    }
+    if (!sendReady) {
+      logLine("Плата инициализируется, повторите через секунду: " + line, "err");
+      return;
+    }
+    monTx(line);
+    chain = chain
+      .then(function () { return writer.write(new TextEncoder().encode(line + "\n")); })
+      .then(function () { logLine("→ " + line, "tx"); })
+      .catch(function (err) {
+        logLine("Ошибка записи: " + err.message, "err");
+      });
+  }
+
+  function syncAngle(id, value) {
+    var v = Number(value);
+    if (!isFinite(v)) return;
+    if (pending[id] !== null) return;
+    if (Date.now() - Math.max(lastSendAt[id], localTouch[id]) < 700) return;
+    state[id] = clamp(v);
+    paint(id);
+  }
+
+  function parseTelemetry(line) {
+    lastTelemetryAt = Date.now();
+
+    var parts = line.slice(1).split(";");
+    var d = {};
+    for (var i = 0; i < parts.length; i++) {
+      var eq = parts[i].indexOf("=");
+      if (eq > 0) d[parts[i].slice(0, eq).trim()] = parts[i].slice(eq + 1).trim();
+    }
+
+    renderTelemetry(d);
+
+    if (cloud.enabled && writer && sendReady) cloudPushState(d);
+  }
+
+  function renderTelemetry(d) {
+    if (d.S1 !== undefined) syncAngle(1, d.S1);
+    if (d.S2 !== undefined) syncAngle(2, d.S2);
+
+    var tempOk = d.T !== undefined && d.T !== "--";
+    el.tVal.textContent = tempOk ? d.T : "--";
+    el.tFoot.textContent = tempOk ? "DHT11 · пин 12 · " + stamp() : "нет данных от DHT11";
+    el.tFoot.className = "sensor-foot" + (tempOk ? "" : " warn");
+
+    var humOk = d.H !== undefined && d.H !== "--";
+    el.hVal.textContent = humOk ? d.H : "--";
+    el.hFoot.textContent = humOk ? "DHT11 · пин 12 · " + stamp() : "нет данных от DHT11";
+    el.hFoot.className = "sensor-foot" + (humOk ? "" : " warn");
+
+    if (d.IR !== undefined && d.IR !== "--") {
+      el.irVal.textContent = "0x" + d.IR;
+      var name = IR_NAMES[d.IR];
+      el.irFoot.textContent = name || "код не с этого пульта";
+      el.irFoot.className = "sensor-foot" + (name ? " ok" : " warn");
+    } else if (d.IR === "--") {
+      el.irVal.textContent = "--";
+      el.irFoot.textContent = "кнопок ещё не было";
+      el.irFoot.className = "sensor-foot";
+    }
+
+    if (d.IDLE !== undefined) {
+      var sec = Math.round(Number(d.IDLE) / 1000);
+      if (isFinite(sec)) {
+        el.idleVal.textContent = String(sec);
+        var longIdle = sec >= 10;
+        el.idleFoot.textContent = longIdle ? "плата простаивает" : "таймер простоя";
+        el.idleFoot.className = "sensor-foot" + (longIdle ? " warn" : "");
+      }
+    }
+  }
+
+  function resetSensors() {
+    lastTelemetryAt = 0;
+    el.tVal.textContent = "--";
+    el.tFoot.textContent = "DHT11 · пин 12";
+    el.tFoot.className = "sensor-foot";
+    el.hVal.textContent = "--";
+    el.hFoot.textContent = "DHT11 · пин 12";
+    el.hFoot.className = "sensor-foot";
+    el.irVal.textContent = "--";
+    el.irFoot.textContent = "последняя кнопка";
+    el.irFoot.className = "sensor-foot";
+    el.idleVal.textContent = "--";
+    el.idleFoot.textContent = "таймер простоя";
+    el.idleFoot.className = "sensor-foot";
+  }
+
+  function setConnected(on, note) {
+    el.disconnect.disabled = !on;
+    el.connect.disabled = on;
+    el.dot.className = "dot" + (on ? ((link.mode === "wifi" || sendReady) ? " on" : " init") : "");
+    el.status.textContent = note || (on ? "Подключено" : "Не подключено");
+  }
+
+  async function connect() {
+    if (link.mode === "wifi") {
+      connectWifi();
+      return;
+    }
+    if (!("serial" in navigator)) {
+      setConnected(false, "Браузер без Web Serial");
+      logLine("Этот браузер не поддерживает Web Serial. Откройте страницу в Chrome, Edge или Opera.", "err");
+      return;
+    }
+    try {
+      port = await navigator.serial.requestPort();
+    } catch (err) {
+      if (err && err.name === "NotFoundError") return;
+      logLine("Не удалось выбрать порт: " + err.message, "err");
+      return;
+    }
+
+    try {
+      await port.open({ baudRate: 9600, dataBits: 8, stopBits: 1, parity: "none", flowControl: "none" });
+    } catch (err) {
+      logLine("Порт занят или недоступен: " + err.message + " (закройте Serial Monitor в Arduino IDE)", "err");
+      port = null;
+      return;
+    }
+
+    writer = port.writable.getWriter();
+    sendReady = false;
+    warnedOffline = false;
+    setConnected(true, "Инициализация платы…");
+    logLine("Порт открыт, 9600 бод. Ждём перезагрузку платы…", "sys");
+
+    setTimeout(function () {
+      sendReady = true;
+      lastTelemetryAt = Date.now();
+      if (port) setConnected(true, "Готово · две сервы");
+      logLine("Плата готова: можно двигать сервы", "sys");
+    }, 2500);
+
+    readLoop();
+  }
+
+  async function readLoop() {
+    var r = port.readable.getReader();
+    reader = r;
+    var decoder = new TextDecoder();
+    var buffer = "";
+
+    try {
+      while (true) {
+        var chunk = await r.read();
+        if (chunk.done) break;
+        monFeed(chunk.value);
+        buffer += decoder.decode(chunk.value, { stream: true });
+        var idx;
+        while ((idx = buffer.indexOf("\n")) >= 0) {
+          var line = buffer.slice(0, idx).replace(/\r/g, "").trim();
+          buffer = buffer.slice(idx + 1);
+          if (!line) continue;
+          if (line.charAt(0) === "#") { parseTelemetry(line); continue; }
+          if (line.indexOf("MB ") === 0) continue;   // данные micro:bit видны в мониторе порта
+          logLine(line.indexOf("ERR") === 0 ? line : "← " + line, line.indexOf("ERR") === 0 ? "err" : "rx");
+        }
+        if (buffer.length > 256) buffer = buffer.slice(-256);
+      }
+    } catch (err) {
+      if (port) logLine("Чтение прервано: " + err.message, "err");
+    } finally {
+      try { r.releaseLock(); } catch (e) {}
+      reader = null;
+    }
+  }
+
+  async function disconnect() {
+    if (link.mode === "wifi") {
+      wifiStop();
+      setConnected(false, "Wi-Fi отключён");
+      logLine("Связь по Wi-Fi закрыта", "sys");
+      return;
+    }
+    sendReady = false;
+    try {
+      if (reader) await reader.cancel();
+    } catch (e) {}
+    try {
+      if (writer) { writer.releaseLock(); writer = null; }
+    } catch (e) {}
+    try {
+      if (port) await port.close();
+    } catch (e) {}
+    port = null;
+    pending[1] = null;
+    pending[2] = null;
+    setConnected(false);
+    resetSensors();
+    logLine("Порт закрыт", "sys");
+  }
+
+  el.connect.addEventListener("click", connect);
+  el.disconnect.addEventListener("click", disconnect);
+
+  el.linkMode.addEventListener("change", async function () {
+    var next = el.linkMode.value === "wifi" ? "wifi" : "usb";
+    if (link.mode === next) return;
+    if (link.mode === "wifi") wifiStop();
+    if (port) await disconnect();
+    link.mode = next;
+    el.wifiUrl.hidden = next !== "wifi";
+    el.connect.textContent = next === "wifi" ? "Подключиться по Wi-Fi" : "Подключить плату";
+    el.connect.disabled = false;
+    setConnected(false, next === "wifi" ? "Wi-Fi: укажите адрес платы" : "Не подключено");
+    resetSensors();
+    logLine(next === "wifi"
+      ? "Режим Wi-Fi: команды идут через веб-сервер ESP8266"
+      : "Режим USB: команды идут через Web Serial", "sys");
+  });
+
+  el.monClear.addEventListener("click", monClear);
+
+  el.monHex.addEventListener("change", monRenderAll);
+
+  el.monPause.addEventListener("change", function () {
+    mon.paused = el.monPause.checked;
+    if (!mon.paused) monSchedule();
+  });
+
+  el.monSave.addEventListener("click", function () {
+    var text = mon.lines.map(function (e) {
+      return e.t + "  " + (e.dir === "rx" ? "RX" : "TX") + "  " + e.text;
+    }).join("\r\n");
+    if (!text) {
+      logLine("Монитор пуст — сохранять нечего", "sys");
+      return;
+    }
+    var blob = new Blob(["\ufeff" + text], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "serial-log-" + stamp().replace(/:/g, "-") + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    logLine("Журнал сохранён: " + mon.lines.length + " строк", "sys");
+  });
+
+  if ("serial" in navigator) {
+    navigator.serial.addEventListener("disconnect", function () {
+      if (!port) return;
+      sendReady = false;
+      writer = null;
+      port = null;
+      setConnected(false, "Плата отключена");
+      logLine("Устройство отключено от USB", "err");
+    });
+  }
+
+  el.servos.addEventListener("input", function (e) {
+    var range = e.target.closest(".range");
+    if (!range) return;
+    var id = Number(range.id.replace("range-", ""));
+    setAngle(id, Number(range.value), false);
+  });
+
+  el.servos.addEventListener("click", function (e) {
+    var btn = e.target.closest("button[data-target]");
+    if (!btn) return;
+    var id = Number(btn.dataset.target);
+    if (btn.dataset.shift) setAngle(id, state[id] + Number(btn.dataset.shift), true);
+    else if (btn.dataset.set) setAngle(id, Number(btn.dataset.set), true);
+  });
+
+  function submitCmd() {
+    var v = el.cmd.value.trim();
+    if (!v) return;
+    send(v);
+    history.push(v);
+    if (history.length > 30) history.shift();
+    historyIndex = history.length;
+    el.cmd.value = "";
+  }
+
+  el.send.addEventListener("click", submitCmd);
+
+  el.cmd.addEventListener("keydown", function (e) {
+    if (e.key === "ArrowUp") {
+      if (!history.length) return;
+      e.preventDefault();
+      historyIndex = Math.max(0, historyIndex - 1);
+      el.cmd.value = history[historyIndex] || "";
+      el.cmd.setSelectionRange(el.cmd.value.length, el.cmd.value.length);
+    } else if (e.key === "ArrowDown") {
+      if (!history.length) return;
+      e.preventDefault();
+      historyIndex = Math.min(history.length, historyIndex + 1);
+      el.cmd.value = historyIndex >= history.length ? "" : history[historyIndex];
+    } else if (e.key === "Enter" || e.keyCode === 13) {
+      e.preventDefault();
+      submitCmd();
+    }
+  });
+
+  // ===== облако: Firebase Realtime Database =====
+  function loadCfg(key, def) {
+    try {
+      var v = localStorage.getItem("servo." + key);
+      return v === null ? def : v;
+    } catch (e) {
+      return def;
+    }
+  }
+
+  function saveCfg(key, val) {
+    try { localStorage.setItem("servo." + key, val); } catch (e) {}
+  }
+
+  function cloudBase() {
+    return cloud.url.replace(/\/+$/, "");
+  }
+
+  function cloudNode() {
+    return cloudBase() + "/" + cloud.path + ".json";
+  }
+
+  function cloudPatch(obj) {
+    if (!cloud.enabled) return;
+    fetch(cloudNode(), {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(obj)
+    }).then(function (r) {
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      if (cloud.status === "err") cloudSetStatus("on");
+    }).catch(function () {
+      cloudSetStatus("err");
+    });
+  }
+
+  function numOrNull(v) {
+    if (v === null || v === undefined || v === "" || v === "--") return null;
+    var n = Number(v);
+    return isFinite(n) ? n : null;
+  }
+
+  function cloudPushState(d) {
+    cloudPatch({
+      "state/s1": numOrNull(d.S1),
+      "state/s2": numOrNull(d.S2),
+      "state/t": numOrNull(d.T),
+      "state/h": numOrNull(d.H),
+      "state/ir": d.IR === "--" ? null : d.IR,
+      "state/idle": numOrNull(d.IDLE),
+      "state/at": Date.now()
+    });
+  }
+
+  function queueCloudCmd(id, v) {
+    if (!cloud.enabled) return;
+    cloud.cmd[id] = v;
+    if (cloud.timers[id]) return;
+
+    var wait = Math.max(0, 180 - (Date.now() - cloud.lastCmdPush));
+    cloud.timers[id] = setTimeout(function () {
+      cloud.timers[id] = null;
+      var val = cloud.cmd[id];
+      if (val === null) return;
+      cloud.cmd[id] = null;
+      cloud.lastCmdPush = Date.now();
+      var o = {};
+      o["cmd/a" + id] = val;
+      cloudPatch(o);
+    }, wait);
+  }
+
+  function applyCloudCmd(cmd) {
+    [1, 2].forEach(function (id) {
+      var raw = cmd["a" + id];
+      if (raw === undefined || raw === null) return;
+
+      var v = clamp(Math.round(Number(raw)));
+      if (!isFinite(v)) return;
+      if (v === state[id]) return;
+      if (pending[id] !== null) return;
+      if (Date.now() - localTouch[id] < 300) return;
+
+      state[id] = v;
+      paint(id);
+
+      if (Date.now() - cloud.lastLog > 800) {
+        cloud.lastLog = Date.now();
+        logLine("Облако: S" + id + " -> " + v + (writer && sendReady ? " (отправлено на плату)" : ""), "sys");
+      }
+
+      if (writer && sendReady) {
+        lastSendAt[id] = Date.now();
+        lastSent[id] = v;
+        writeLine("s" + id + " " + v);
+      }
+    });
+  }
+
+  function applyCloudState(st) {
+    if (writer && sendReady) return;
+    renderTelemetry({
+      S1: st.s1, S2: st.s2, T: st.t, H: st.h, IR: st.ir, IDLE: st.idle
+    });
+  }
+
+  function applyCloud(path, data) {
+    if (!data) return;
+
+    if (path === "/") {
+      if (data.cmd) applyCloudCmd(data.cmd);
+      if (data.state) applyCloudState(data.state);
+      return;
+    }
+    if (path === "/cmd") { applyCloudCmd(data); return; }
+    if (path.indexOf("/cmd/") === 0) {
+      var c = {};
+      c[path.slice(5)] = data;
+      applyCloudCmd(c);
+      return;
+    }
+    if (path === "/state") { applyCloudState(data); return; }
+    if (path.indexOf("/state/") === 0) {
+      var s = {};
+      s[path.slice(7)] = data;
+      applyCloudState(s);
+    }
+  }
+
+  function onCloudEvent(ev) {
+    var msg;
+    try { msg = JSON.parse(ev.data); } catch (e) { return; }
+    if (cloud.status !== "on") cloudSetStatus("on");
+    if (!cloud.sawEvent) {
+      cloud.sawEvent = true;
+      logLine("Облако: канал событий открыт, изменения приходят сразу", "sys");
+    }
+    applyCloud(msg.path || "/", msg.data);
+  }
+
+  function cloudPoll() {
+    if (!cloud.enabled) return;
+
+    fetch(cloudNode(), { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (data) {
+        cloud.pollErrors = 0;
+        if (cloud.status !== "on") cloudSetStatus("on");
+        if (data) applyCloud("/", data);
+      })
+      .catch(function () {
+        cloud.pollErrors++;
+        if (cloud.pollErrors === 3) {
+          cloudSetStatus("err");
+          logLine("Облако: база не читается. Проверьте правила .read и интернет", "err");
+        }
+      });
+  }
+
+  function cloudConnect() {
+    cloudDisconnect(true);
+
+    if (!cloud.url) { cloudSetStatus("nodata"); return; }
+
+    cloud.enabled = true;
+    cloud.sawEvent = false;
+    cloud.pollErrors = 0;
+    saveCfg("url", cloud.url);
+    saveCfg("path", cloud.path);
+    saveCfg("on", "1");
+    cloudSetStatus("connecting");
+    logLine("Облако: подключение к " + cloudNode(), "sys");
+
+    try {
+      cloud.es = new EventSource(cloudNode());
+    } catch (e) {
+      cloudSetStatus("err");
+      return;
+    }
+
+    cloud.es.addEventListener("put", onCloudEvent);
+    cloud.es.addEventListener("patch", onCloudEvent);
+    cloud.es.addEventListener("open", function () { cloudSetStatus("on"); });
+    cloud.es.addEventListener("error", function () { cloudSetStatus("err"); });
+  }
+
+  function cloudDisconnect(quiet) {
+    if (cloud.es) {
+      try { cloud.es.close(); } catch (e) {}
+      cloud.es = null;
+    }
+    cloud.enabled = false;
+    if (!quiet) {
+      saveCfg("on", "0");
+      cloudSetStatus("off");
+    }
+  }
+
+  function cloudSetStatus(s) {
+    cloud.status = s;
+
+    var names = {
+      off: "Облако: выкл",
+      connecting: "Облако: подключение…",
+      on: "Облако: онлайн",
+      err: "Облако: ошибка",
+      nodata: "Облако: настройте"
+    };
+
+    var btn = document.getElementById("btnCloud");
+    if (btn) {
+      btn.textContent = names[s] || names.off;
+      btn.className = "btn" + (s === "on" ? " cloud-on" : "");
+    }
+
+    var hint = document.getElementById("cloudHint");
+    if (hint) {
+      var text = {
+        off: "Синхронизация выключена — страница работает только с платой.",
+        connecting: "Подключаюсь к базе…",
+        on: "Синхронизация включена: " + cloudBase() + "/" + cloud.path,
+        err: "Нет связи с базой. Проверьте адрес, интернет и правила доступа.",
+        nodata: "Укажите адрес базы Firebase."
+      };
+      hint.textContent = text[s] || text.off;
+      hint.className = "cloud-hint" + (s === "on" ? " ok" : s === "err" || s === "nodata" ? " bad" : "");
+    }
+  }
+
+  function setCloudHint(text, cls) {
+    var hint = document.getElementById("cloudHint");
+    if (!hint) return;
+    hint.textContent = text;
+    hint.className = "cloud-hint" + (cls ? " " + cls : "");
+  }
+
+  function cloudCopy(text, okMsg) {
+    var hint = document.getElementById("cloudHint");
+    function done() { setCloudHint(okMsg, "ok"); }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (e) { setCloudHint(text, ""); }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+      fallback();
+    }
+    if (hint) hint.setAttribute("data-copied", "1");
+  }
+
+  var cloudDialog = document.getElementById("cloudDialog");
+
+  function openCloudDialog() {
+    document.getElementById("cloudUrl").value = cloud.url || CLOUD_DEFAULT_URL;
+    document.getElementById("cloudPath").value = cloud.path;
+    cloudSetStatus(cloud.status);
+    if (typeof cloudDialog.showModal === "function") cloudDialog.showModal();
+    else cloudDialog.setAttribute("open", "");
+  }
+
+  document.getElementById("btnCloud").addEventListener("click", openCloudDialog);
+
+  document.getElementById("cloudClose").addEventListener("click", function () { cloudDialog.close(); });
+
+  document.getElementById("cloudApply").addEventListener("click", function () {
+    var url = document.getElementById("cloudUrl").value.trim().replace(/\/+$/, "");
+    var path = document.getElementById("cloudPath").value.trim().replace(/^\/+|\/+$/g, "");
+
+    if (!/^https:\/\/[^\s]+$/.test(url)) { setCloudHint("Адрес должен начинаться с https://", "bad"); return; }
+    if (!path) { setCloudHint("Укажите путь, например manipulator", "bad"); return; }
+
+    cloud.url = url;
+    cloud.path = path;
+    cloudConnect();
+
+    if (cloud.status !== "err") {
+      setTimeout(function () { cloudDialog.close(); }, 600);
+    }
+  });
+
+  document.getElementById("cloudStop").addEventListener("click", function () {
+    cloudDisconnect(false);
+    setCloudHint("Синхронизация выключена", "warn");
+  });
+
+  document.getElementById("cloudRules").addEventListener("click", function () {
+    var rules = '{\n  "rules": {\n    "' + cloud.path + '": {\n      ".read": true,\n      ".write": true\n    }\n  }\n}';
+    cloudCopy(rules, "Правила скопированы — вставьте их во вкладку Rules в консоли Firebase");
+  });
+
+  document.getElementById("cloudUrlCopy").addEventListener("click", function () {
+    cloudCopy(CLOUD_DEFAULT_URL, "Адрес базы скопирован");
+  });
+
+  cloudDialog.addEventListener("click", function (e) {
+    if (e.target !== cloudDialog) return;
+    var r = cloudDialog.getBoundingClientRect();
+    var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (!inside) cloudDialog.close();
+  });
+
+  // ===== драйвер платы =====
+  var drvDialog = document.getElementById("drvDialog");
+  var drvOut = document.getElementById("drvOut");
+  var drvPath = document.getElementById("drvPath");
+
+  function localDir() {
+    try {
+      var u = new URL(location.href);
+      if (u.protocol !== "file:") return null;
+      var p = decodeURIComponent(u.pathname).replace(/^\//, "").replace(/\//g, "\\");
+      return p.substring(0, p.lastIndexOf("\\"));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function hex(v) {
+    if (typeof v !== "number") return "—";
+    var s = v.toString(16).toUpperCase();
+    while (s.length < 4) s = "0" + s;
+    return "0x" + s;
+  }
+
+  function vendorVerdict(vid) {
+    if (vid === 0x2341) return { text: "Arduino LLC — официальная плата, драйвер встроен в Windows", cls: "ok" };
+    if (vid === 0x2A03) return { text: "Arduino.org — драйвер встроен в Windows", cls: "ok" };
+    if (vid === 0x1A86) return { text: "WCH CH340/CH341 — нужен драйвер CH340 из установщика", cls: "warn" };
+    if (vid === 0x0403) return { text: "FTDI — нужен VCP-драйвер FTDI", cls: "warn" };
+    if (vid === 0x10C4) return { text: "Silicon Labs CP210x — нужен CP210x-драйвер", cls: "warn" };
+    return { text: "неизвестный производитель", cls: "bad" };
+  }
+
+  async function checkBoard() {
+    if (!("serial" in navigator)) {
+      drvOut.textContent = "Web Serial недоступен: откройте страницу в Chrome, Edge или Opera.";
+      return;
+    }
+    var ports = [];
+    try {
+      ports = await navigator.serial.getPorts();
+    } catch (err) {
+      drvOut.textContent = "Не удалось запросить порты: " + err.message;
+      return;
+    }
+
+    drvOut.textContent = "";
+    if (!ports.length) {
+      drvOut.textContent =
+        "Браузер пока не знает ни одной платы.\n" +
+        "Подключите USB, нажмите «Подключить плату» и выберите устройство в списке — после этого проверка станет точной.";
+      return;
+    }
+
+    ports.forEach(function (p) {
+      var info = p.getInfo ? p.getInfo() : {};
+      var verdict = vendorVerdict(info.usbVendorId);
+
+      var row = document.createElement("div");
+      var head = document.createElement("div");
+      head.textContent = "VID " + hex(info.usbVendorId) + " · PID " + hex(info.usbProductId) +
+        (p === port ? " · порт открыт этой страницей" : "");
+      var note = document.createElement("div");
+      note.className = verdict.cls;
+      note.textContent = p === port ? "работает — драйвер установлен и обмен идёт" : verdict.text;
+
+      row.appendChild(head);
+      row.appendChild(note);
+      drvOut.appendChild(row);
+    });
+  }
+
+  function copyText(text, okMessage) {
+    function done() { drvOut.textContent = okMessage; }
+    function fallback() {
+      var ta = document.createElement("textarea");
+      ta.value = text;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand("copy"); done(); } catch (e) { drvOut.textContent = text; }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
+
+  document.getElementById("btnDriver").addEventListener("click", function () {
+    var dir = localDir();
+    var full = (dir ? dir + "\\driver" : "driver") + "\\install-driver.bat";
+    drvPath.textContent = full;
+
+    var dl = document.getElementById("drvDownload");
+    var note = document.getElementById("drvFileNote");
+    if (dir) {
+      if (dl) dl.style.display = "";
+      if (note) note.textContent = "уже лежит рядом: driver\\install-driver.bat";
+    } else {
+      if (dl) dl.style.display = "none";
+      if (note) note.textContent = "страница открыта с сервера — установщик есть только в локальной копии файла";
+    }
+
+    if (typeof drvDialog.showModal === "function") drvDialog.showModal();
+    else drvDialog.setAttribute("open", "");
+    var close = document.getElementById("drvClose");
+    if (close) close.focus();
+  });
+
+  document.getElementById("drvClose").addEventListener("click", function () { drvDialog.close(); });
+  document.getElementById("drvCheck").addEventListener("click", checkBoard);
+
+  document.getElementById("drvCopy").addEventListener("click", function () {
+    var dir = localDir();
+    copyText((dir ? dir + "\\driver" : "driver") + "\\install-driver.bat",
+      "Путь скопирован — вставьте его в адресную строку Проводника.");
+  });
+
+  drvDialog.addEventListener("click", function (e) {
+    if (e.target !== drvDialog) return;
+    var r = drvDialog.getBoundingClientRect();
+    var inside = e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom;
+    if (!inside) drvDialog.close();
+  });
+
+  setInterval(flushPending, 25);
+  setInterval(cloudPoll, 700);
+
+  setInterval(function () {
+    if (!port || !sendReady) return;
+    var stale = Date.now() - lastTelemetryAt > 3500;
+    el.dot.className = "dot " + (stale ? "init" : " on");
+    el.status.textContent = stale
+      ? "Плата молчит · нет телеметрии"
+      : "Плата на связи · телеметрия каждую секунду";
+  }, 1000);
+
+  buildCards();
+  [1, 2].forEach(paint);
+  setConnected(false);
+
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    el.wifiUrl.value = location.host;
+    if (location.protocol === "http:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      el.linkMode.value = "wifi";
+      el.linkMode.dispatchEvent(new Event("change"));
+    }
+  } else {
+    el.wifiUrl.value = "mega.local";
+  }
+
+  cloud.url = loadCfg("url", CLOUD_DEFAULT_URL);
+  cloud.path = loadCfg("path", "manipulator");
+  cloudSetStatus("off");
+  if (loadCfg("on", "0") === "1") setTimeout(cloudConnect, 250);
+
+  if (!("serial" in navigator)) {
+    el.connect.disabled = el.linkMode.value !== "wifi";
+    if (el.linkMode.value !== "wifi") {
+      setConnected(false, "Браузер без Web Serial");
+      logLine("Web Serial недоступен: нужен Chrome, Edge или Opera на компьютере. По Wi-Fi страница работает в любом браузере.", "err");
+    } else {
+      logLine("В этом браузере нет Web Serial — доступен режим Wi-Fi.", "sys");
+    }
+  }
+})();
+</script>
+</body>
+</html>
