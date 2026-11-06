@@ -49,6 +49,9 @@
   .dot.on{background:var(--ok);box-shadow:0 0 0 4px rgba(55,211,153,.16)}
   .dot.init{background:var(--warn);box-shadow:0 0 0 4px rgba(240,180,41,.16)}
   .actions{display:flex;gap:10px;flex-wrap:wrap}
+  .mode-select{appearance:none;padding:8px 30px 8px 12px;background:#182230 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0h10L5 6z' fill='%238a99ab'/%3E%3C/svg%3E") no-repeat right 10px center;color:var(--text);font:13px system-ui}
+  .wifi-url{width:170px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:#0b1016;color:var(--text);font:13px var(--mono)}
+  .wifi-url:focus-visible{outline:2px solid #6ea8ff;outline-offset:2px}
 
   .btn{
     font:inherit;font-size:14px;
@@ -119,7 +122,7 @@
     border:1px solid var(--line);border-radius:14px;padding:18px 20px 16px;
   }
   .console h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 14px;font-weight:600}
-  .cmdbar{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+  .cmdbar{display:flex;gap:10px;margin:12px 0 0;flex-wrap:wrap}
   .cmdbar input[type=text]{
     flex:1 1 260px;min-width:0;
     background:#0b1016;color:var(--text);
@@ -140,6 +143,43 @@
   .log-line.err .m{color:var(--err)}
   .log-line.sys .m{color:var(--muted)}
   .log:empty::after{content:"Пока пусто — подключите плату и подвиньте ползунок.";color:#4d5a68}
+
+  .monitor{
+    background:linear-gradient(180deg,var(--panel),#12181f);
+    border:1px solid var(--line);border-radius:14px;padding:18px 20px 16px;
+  }
+  .monitor h2{
+    font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+    margin:0 0 14px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  }
+  .mon-count{
+    font-family:var(--mono);font-size:11px;letter-spacing:0;text-transform:none;color:#7b8a9a;
+    border:1px solid var(--line);border-radius:999px;padding:2px 9px;
+  }
+  .mon-bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .mon-tools{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-left:auto}
+  .switch{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--muted);cursor:pointer;user-select:none}
+  .switch input{accent-color:#6ea8ff;margin:0}
+  .mon{
+    background:#0b1016;border:1px solid var(--line);border-radius:10px;
+    padding:10px 12px;height:260px;overflow:auto;
+    font-family:var(--mono);font-size:12px;line-height:1.6;
+  }
+  .mon-line{display:flex;gap:8px;white-space:pre-wrap;word-break:break-word}
+  .mon-line .t{color:#4d5a68;flex:0 0 auto}
+  .mon-line .dir{
+    flex:0 0 auto;font-size:10.5px;letter-spacing:.08em;border-radius:4px;padding:0 4px;
+    border:1px solid var(--line);color:#7b8a9a;align-self:flex-start;margin-top:2px;
+  }
+  .mon-line.rx .dir{color:var(--ok);border-color:rgba(55,211,153,.35)}
+  .mon-line.tx .dir{color:#6ea8ff;border-color:rgba(110,168,255,.35)}
+  .mon-line .m{color:#cfe3d8;min-width:0}
+  .mon-line.tx .m{color:#9dc4ff}
+  .mon-line.sys .dir{color:#7b8a9a;border-color:var(--line)}
+  .mon-line.sys .m{color:var(--muted)}
+  .mon-line.err .dir{color:var(--err);border-color:rgba(255,107,107,.35)}
+  .mon-line.err .m{color:var(--err)}
+  .mon:empty::after{content:"Здесь появятся все строки с платы — телеметрия и данные датчиков.";color:#4d5a68}
 
   .hint{color:var(--muted);font-size:12.5px;line-height:1.6;margin:12px 0 0}
   .hint code{font-family:var(--mono);color:#b9c8d8;background:#0b1016;border:1px solid var(--line);border-radius:4px;padding:1px 5px}
@@ -226,6 +266,8 @@
     .sensor-value{font-size:26px}
     .readout .num{font-size:38px}
     .log{height:180px}
+    .mon{height:200px}
+    .mon-tools{margin-left:0}
     .top{align-items:flex-start}
     .actions .btn{flex:1 1 auto}
   }
@@ -240,9 +282,14 @@
   <div>
     <div class="status"><span class="dot" id="dot"></span><span id="statusText">Не подключено</span></div>
     <h1>Пульт манипулятора</h1>
-    <p class="sub">Две сервы на одной плате, команды уходят по USB как текст: <code style="font-family:var(--mono)">s1 120</code></p>
+    <p class="sub">Две сервы на одной плате. Команды уходят как текст <code style="font-family:var(--mono)">s1 120</code> — по проводу или по Wi-Fi.</p>
   </div>
   <div class="actions">
+    <select class="btn mode-select" id="linkMode" aria-label="Способ связи с платой">
+      <option value="usb">USB · провод</option>
+      <option value="wifi">Wi-Fi</option>
+    </select>
+    <input class="wifi-url" id="wifiUrl" type="text" spellcheck="false" autocomplete="off" placeholder="mega.local" aria-label="Адрес Wi-Fi платы" hidden>
     <button class="btn" id="btnCloud">Облако: выкл</button>
     <button class="btn" id="btnDriver">Драйвер платы</button>
     <button class="btn" id="btnDisconnect" disabled>Отключить</button>
@@ -276,24 +323,39 @@
     </div>
   </section>
 
-  <section class="console">
-    <h2>Командная строка</h2>
+  <section class="console" aria-label="Монитор порта и командная строка">
+    <h2>Монитор порта · RX / TX <span class="mon-count" id="monCount">0 строк · 0 Б</span></h2>
+    <div class="mon-bar">
+      <div class="mon-tools">
+        <label class="switch"><input type="checkbox" id="monAuto" checked> Автопрокрутка</label>
+        <label class="switch"><input type="checkbox" id="monHex"> HEX</label>
+        <label class="switch"><input type="checkbox" id="monPause"> Пауза</label>
+        <button class="btn" id="monClear">Очистить</button>
+        <button class="btn" id="monSave">Сохранить .txt</button>
+      </div>
+    </div>
+    <div class="mon" id="mon" role="log" aria-live="off"></div>
     <div class="cmdbar">
-      <input type="text" id="cmdInput" placeholder="s1 120  ·  s2 45  ·  serva angle 90" autocomplete="off" spellcheck="false" aria-label="Команда для платы">
+      <input type="text" id="cmdInput" placeholder="s1 120  ·  s2 45  ·  serva angle 90  ·  mb 1" autocomplete="off" spellcheck="false" aria-label="Команда для платы">
       <button class="btn" id="btnSend">Отправить</button>
     </div>
-    <div class="log" id="log" role="log" aria-live="polite"></div>
     <p class="hint">
-      Поддерживаются <code>s1 &lt;угол&gt;</code>, <code>s2 &lt;угол&gt;</code>, <code>serva angle &lt;угол&gt;</code>.
-      Допустимый диапазон на прошивке — 20…170°, всё остальное обрезается. Стрелки ↑ и ↓ листают историю команд.
-      Строки, начинающиеся с <code>#</code>, — телеметрия платы: они обновляют показатели выше и в лог не попадают.
+      В одной ленте видно всё: <code>RX</code> — что пришло от платы (включая телеметрию <code>#S1=…;T=…</code>),
+      <code>TX</code> — что ушло на плату, <code>SYS</code> и <code>ERR</code> — сообщения самой страницы.
+      Команда уходит кнопкой «Отправить» или клавишей <code>Enter</code>, стрелки ↑ и ↓ листают историю.
+      Поддерживаются <code>s1 &lt;угол&gt;</code>, <code>s2 &lt;угол&gt;</code>, <code>serva angle &lt;угол&gt;</code>,
+      а <code>mb &lt;текст&gt;</code> отправляет строку на micro:bit. Диапазон прошивки — 20…170°.
+      «HEX» показывает байты, «Пауза» останавливает вывод, не закрывая порт.
     </p>
   </section>
 
   <p class="note">
-    <strong>Перед подключением закройте Serial Monitor в Arduino IDE</strong> — порт может быть открыт только одним приложением.
+    <strong>Способ связи выбирается сверху:</strong> <code>USB · провод</code> — через Web Serial, плата подключена кабелем;
+    <code>Wi-Fi</code> — через встроенный ESP8266 (Mega+WiFi R3), тогда достаточно указать адрес платы, например
+    <code>mega.local</code> или её IP, и управлять с телефона без проводов.
+    В режиме USB перед подключением закройте Serial Monitor в Arduino IDE — порт может быть открыт только одним приложением.
     После открытия порта плата перезагружается, поэтому первые ~2,5 секунды команды не отправляются.
-    Страница работает в Chrome, Edge или Opera (нужен Web Serial); данные никуда не уходят, обмен идёт напрямую с платой.
+    Данные никуда не уходят, обмен идёт напрямую с платой.
     Если плата не появляется в списке портов — нажмите «Драйвер платы».
   </p>
 </main>
@@ -439,7 +501,16 @@
     irVal: document.getElementById("irVal"),
     irFoot: document.getElementById("irFoot"),
     idleVal: document.getElementById("idleVal"),
-    idleFoot: document.getElementById("idleFoot")
+    idleFoot: document.getElementById("idleFoot"),
+    mon: document.getElementById("mon"),
+    monCount: document.getElementById("monCount"),
+    monAuto: document.getElementById("monAuto"),
+    monHex: document.getElementById("monHex"),
+    monPause: document.getElementById("monPause"),
+    monClear: document.getElementById("monClear"),
+    monSave: document.getElementById("monSave"),
+    linkMode: document.getElementById("linkMode"),
+    wifiUrl: document.getElementById("wifiUrl")
   };
 
   function clamp(v) {
@@ -456,6 +527,10 @@
   }
 
   function logLine(text, kind) {
+    // Всё, что раньше шло в отдельный лог команд, теперь падает в общую ленту.
+    // Строки TX не дублируем: они уже добавлены в монитор через monTx().
+    if (kind !== "tx") monText(kind === "rx" ? "rx" : (kind === "err" ? "err" : "sys"), text);
+    if (!el.log) return;
     var atBottom = el.log.scrollHeight - el.log.scrollTop - el.log.clientHeight < 40;
     var row = document.createElement("div");
     row.className = "log-line " + (kind || "sys");
@@ -470,6 +545,227 @@
     el.log.appendChild(row);
     while (el.log.children.length > 300) el.log.removeChild(el.log.firstChild);
     if (atBottom) el.log.scrollTop = el.log.scrollHeight;
+  }
+
+  var MON_DECODER = new TextDecoder("utf-8", { fatal: false });
+  var MON_MAX_NODES = 600;
+  var MON_KEEP_LINES = 2000;
+
+  var mon = {
+    lines: [],
+    queue: [],
+    raw: [],
+    rxBytes: 0,
+    txBytes: 0,
+    paused: false,
+    raf: 0
+  };
+
+  function monDecode(bytes) {
+    try { return MON_DECODER.decode(new Uint8Array(bytes)); }
+    catch (e) { return ""; }
+  }
+
+  function monFeed(u8) {
+    if (!u8 || !u8.length) return;
+    mon.rxBytes += u8.length;
+    var i;
+    for (i = 0; i < u8.length; i++) mon.raw.push(u8[i]);
+    var start = 0;
+    for (i = 0; i < mon.raw.length; i++) {
+      if (mon.raw[i] === 10) {
+        monAdd("rx", mon.raw.slice(start, i));
+        start = i + 1;
+      }
+    }
+    mon.raw = mon.raw.slice(start);
+    if (mon.raw.length > 1024) {
+      monAdd("rx", mon.raw);
+      mon.raw = [];
+    }
+    monCount();
+  }
+
+  function monTx(line) {
+    if (line === null || line === undefined) return;
+    var text = String(line);
+    var bytes = Array.prototype.slice.call(new TextEncoder().encode(text));
+    mon.txBytes += bytes.length + 1;
+    monAdd("tx", bytes);
+  }
+
+  function monAdd(dir, bytes) {
+    var entry = {
+      dir: dir,
+      text: monDecode(bytes).replace(/\r/g, ""),
+      raw: bytes.slice(0, 400),
+      t: stamp()
+    };
+    mon.lines.push(entry);
+    while (mon.lines.length > MON_KEEP_LINES) mon.lines.shift();
+    mon.queue.push(entry);
+    while (mon.queue.length > MON_MAX_NODES) mon.queue.shift();
+    monCount();
+    monSchedule();
+  }
+
+  function monCount() {
+    if (!el.monCount) return;
+    var word = "строк";
+    var n = mon.lines.length % 100;
+    if (n < 11 || n > 14) {
+      if (mon.lines.length % 10 === 1) word = "строка";
+      else if (mon.lines.length % 10 >= 2 && mon.lines.length % 10 <= 4) word = "строки";
+    }
+    el.monCount.textContent = mon.lines.length + " " + word + " · " + (mon.rxBytes + mon.txBytes) + " Б";
+  }
+
+  function monSchedule() {
+    if (mon.raf) return;
+    if (typeof requestAnimationFrame !== "function") {
+      monFlush();
+      return;
+    }
+    mon.raf = requestAnimationFrame(monFlush);
+  }
+
+  function monHexText(bytes) {
+    var out = [];
+    for (var i = 0; i < bytes.length; i++) {
+      var h = bytes[i].toString(16).toUpperCase();
+      out.push(h.length < 2 ? "0" + h : h);
+    }
+    return out.join(" ");
+  }
+
+  function monRow(entry) {
+    var row = document.createElement("div");
+    row.className = "mon-line " + entry.dir;
+    var t = document.createElement("span");
+    t.className = "t";
+    t.textContent = entry.t;
+    var dir = document.createElement("span");
+    dir.className = "dir";
+    dir.textContent = entry.dir === "rx" ? "RX" : entry.dir === "sys" ? "SYS" : entry.dir === "err" ? "ERR" : "TX";
+    var m = document.createElement("span");
+    m.className = "m";
+    m.textContent = el.monHex && el.monHex.checked ? monHexText(entry.raw) : entry.text;
+    row.appendChild(t);
+    row.appendChild(dir);
+    row.appendChild(m);
+    return row;
+  }
+
+  function monFlush() {
+    mon.raf = 0;
+    if (!el.mon) return;
+    if (mon.paused || !mon.queue.length) return;
+    var atBottom = el.mon.scrollHeight - el.mon.scrollTop - el.mon.clientHeight < 40;
+    var frag = document.createDocumentFragment();
+    while (mon.queue.length) frag.appendChild(monRow(mon.queue.shift()));
+    el.mon.appendChild(frag);
+    while (el.mon.children.length > MON_MAX_NODES) el.mon.removeChild(el.mon.firstChild);
+    if (el.monAuto.checked && atBottom) el.mon.scrollTop = el.mon.scrollHeight;
+  }
+
+  function monRenderAll() {
+    if (!el.mon) return;
+    el.mon.innerHTML = "";
+    var frag = document.createDocumentFragment();
+    mon.lines.slice(-MON_MAX_NODES).forEach(function (e) { frag.appendChild(monRow(e)); });
+    el.mon.appendChild(frag);
+    if (el.monAuto.checked) el.mon.scrollTop = el.mon.scrollHeight;
+  }
+
+  function monClear() {
+    mon.lines = [];
+    mon.queue = [];
+    mon.raw = [];
+    mon.rxBytes = 0;
+    mon.txBytes = 0;
+    if (el.mon) el.mon.innerHTML = "";
+    monCount();
+  }
+
+  // ===== СПОСОБ СВЯЗИ: USB (Web Serial) или Wi-Fi (веб-сервер ESP) =====
+  var link = { mode: "usb", base: "", timer: 0, newest: null };
+
+  function linkBase() {
+    var v = (el.wifiUrl && el.wifiUrl.value ? el.wifiUrl.value : "").trim().replace(/\/+$/, "");
+    if (!v) return "";
+    if (!/^https?:\/\//i.test(v)) v = "http://" + v;
+    return v;
+  }
+
+  function monText(dir, text) {
+    monAdd(dir, Array.prototype.slice.call(new TextEncoder().encode(String(text))));
+  }
+
+  function wifiLogPush(list) {
+    if (!list || !list.length) return;
+    var prev = link.newest;
+    link.newest = list[0];
+    if (prev === null) { monText("rx", list[0]); return; }
+    var idx = list.indexOf(prev);
+    if (idx <= 0) return;
+    for (var i = idx - 1; i >= 0; i--) monText("rx", list[i]);
+  }
+
+  function wifiPoll() {
+    if (!link.base) return;
+    fetch(link.base + "/api/state", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        if (!d) return;
+        if (d.raw) {
+          parseTelemetry(d.raw);
+          lastTelemetryAt = Date.now();
+        }
+        wifiLogPush(d.log);
+        setConnected(true, "Wi-Fi · " + (d.ip || link.base));
+      })
+      .catch(function () {
+        setConnected(false, "Wi-Fi: нет ответа");
+      });
+  }
+
+  function connectWifi() {
+    link.base = linkBase();
+    if (!link.base) {
+      logLine("Укажите адрес платы, например mega.local или 192.168.1.50", "err");
+      return;
+    }
+    el.connect.disabled = true;
+    logLine("Проверяю " + link.base + " …", "sys");
+    fetch(link.base + "/api/state", { cache: "no-store" })
+      .then(function (r) {
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        return r.json();
+      })
+      .then(function (d) {
+        el.connect.disabled = false;
+        link.newest = null;
+        setConnected(true, "Wi-Fi · " + (d.ip || link.base));
+        logLine("Связь по Wi-Fi: " + link.base + " (плата " + (d.ip || "?") + ")", "sys");
+        if (link.timer) clearInterval(link.timer);
+        link.timer = setInterval(wifiPoll, 600);
+        wifiPoll();
+      })
+      .catch(function (err) {
+        el.connect.disabled = false;
+        setConnected(false, "Wi-Fi: нет ответа");
+        logLine("Не удалось связаться: " + err.message + ". Проверьте адрес, питание платы и общую сеть.", "err");
+      });
+  }
+
+  function wifiStop() {
+    if (link.timer) clearInterval(link.timer);
+    link.timer = 0;
+    link.base = "";
+    link.newest = null;
   }
 
   function buildCards() {
@@ -541,12 +837,12 @@
 
     localTouch[id] = Date.now();
 
-    if (!writer && !cloud.enabled && !warnedOffline) {
+    if (!writer && link.mode !== "wifi" && !cloud.enabled && !warnedOffline) {
       warnedOffline = true;
       logLine("Нет подключения: положение запомнится и уйдёт на плату после подключения", "err");
     }
 
-    if (writer) {
+    if (writer || (link.mode === "wifi" && link.base)) {
       pending[id] = v;
       pumpServo(id, immediate);
     }
@@ -555,7 +851,13 @@
   }
 
   function writeLine(line) {
+    if (link.mode === "wifi") {
+      if (!link.base) return null;
+      monTx(line);
+      return fetch(link.base + "/api/cmd?c=" + encodeURIComponent(line), { cache: "no-store" });
+    }
     if (!writer || !sendReady) return null;
+    monTx(line);
     var p = chain.then(function () { return writer.write(new TextEncoder().encode(line + "\n")); });
     chain = p.catch(function () {});
     return p;
@@ -564,7 +866,7 @@
   function pumpServo(id, force) {
     var v = pending[id];
     if (v === null) return;
-    if (!writer || !sendReady) return;
+    if (link.mode !== "wifi" && (!writer || !sendReady)) return;
 
     if (busy[id] && !force) return;
 
@@ -604,6 +906,17 @@
   function send(cmd) {
     var line = String(cmd).trim();
     if (!line) return;
+    if (link.mode === "wifi") {
+      if (!link.base) {
+        logLine("Сначала подключитесь по Wi-Fi — команда не отправлена: " + line, "err");
+        return;
+      }
+      monTx(line);
+      fetch(link.base + "/api/cmd?c=" + encodeURIComponent(line), { cache: "no-store" })
+        .then(function () { logLine("→ " + line, "tx"); })
+        .catch(function (err) { logLine("Ошибка Wi-Fi: " + err.message, "err"); });
+      return;
+    }
     if (!writer) {
       logLine("Нет подключения — команда не отправлена: " + line, "err");
       return;
@@ -612,6 +925,7 @@
       logLine("Плата инициализируется, повторите через секунду: " + line, "err");
       return;
     }
+    monTx(line);
     chain = chain
       .then(function () { return writer.write(new TextEncoder().encode(line + "\n")); })
       .then(function () { logLine("→ " + line, "tx"); })
@@ -699,11 +1013,15 @@
   function setConnected(on, note) {
     el.disconnect.disabled = !on;
     el.connect.disabled = on;
-    el.dot.className = "dot" + (on ? (sendReady ? " on" : " init") : "");
+    el.dot.className = "dot" + (on ? ((link.mode === "wifi" || sendReady) ? " on" : " init") : "");
     el.status.textContent = note || (on ? "Подключено" : "Не подключено");
   }
 
   async function connect() {
+    if (link.mode === "wifi") {
+      connectWifi();
+      return;
+    }
     if (!("serial" in navigator)) {
       setConnected(false, "Браузер без Web Serial");
       logLine("Этот браузер не поддерживает Web Serial. Откройте страницу в Chrome, Edge или Opera.", "err");
@@ -751,6 +1069,7 @@
       while (true) {
         var chunk = await r.read();
         if (chunk.done) break;
+        monFeed(chunk.value);
         buffer += decoder.decode(chunk.value, { stream: true });
         var idx;
         while ((idx = buffer.indexOf("\n")) >= 0) {
@@ -758,6 +1077,7 @@
           buffer = buffer.slice(idx + 1);
           if (!line) continue;
           if (line.charAt(0) === "#") { parseTelemetry(line); continue; }
+          if (line.indexOf("MB ") === 0) continue;   // данные micro:bit видны в мониторе порта
           logLine(line.indexOf("ERR") === 0 ? line : "← " + line, line.indexOf("ERR") === 0 ? "err" : "rx");
         }
         if (buffer.length > 256) buffer = buffer.slice(-256);
@@ -771,6 +1091,12 @@
   }
 
   async function disconnect() {
+    if (link.mode === "wifi") {
+      wifiStop();
+      setConnected(false, "Wi-Fi отключён");
+      logLine("Связь по Wi-Fi закрыта", "sys");
+      return;
+    }
     sendReady = false;
     try {
       if (reader) await reader.cancel();
@@ -791,6 +1117,50 @@
 
   el.connect.addEventListener("click", connect);
   el.disconnect.addEventListener("click", disconnect);
+
+  el.linkMode.addEventListener("change", async function () {
+    var next = el.linkMode.value === "wifi" ? "wifi" : "usb";
+    if (link.mode === next) return;
+    if (link.mode === "wifi") wifiStop();
+    if (port) await disconnect();
+    link.mode = next;
+    el.wifiUrl.hidden = next !== "wifi";
+    el.connect.textContent = next === "wifi" ? "Подключиться по Wi-Fi" : "Подключить плату";
+    el.connect.disabled = false;
+    setConnected(false, next === "wifi" ? "Wi-Fi: укажите адрес платы" : "Не подключено");
+    resetSensors();
+    logLine(next === "wifi"
+      ? "Режим Wi-Fi: команды идут через веб-сервер ESP8266"
+      : "Режим USB: команды идут через Web Serial", "sys");
+  });
+
+  el.monClear.addEventListener("click", monClear);
+
+  el.monHex.addEventListener("change", monRenderAll);
+
+  el.monPause.addEventListener("change", function () {
+    mon.paused = el.monPause.checked;
+    if (!mon.paused) monSchedule();
+  });
+
+  el.monSave.addEventListener("click", function () {
+    var text = mon.lines.map(function (e) {
+      return e.t + "  " + (e.dir === "rx" ? "RX" : "TX") + "  " + e.text;
+    }).join("\r\n");
+    if (!text) {
+      logLine("Монитор пуст — сохранять нечего", "sys");
+      return;
+    }
+    var blob = new Blob(["\ufeff" + text], { type: "text/plain;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "serial-log-" + stamp().replace(/:/g, "-") + ".txt";
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    logLine("Журнал сохранён: " + mon.lines.length + " строк", "sys");
+  });
 
   if ("serial" in navigator) {
     navigator.serial.addEventListener("disconnect", function () {
@@ -818,7 +1188,7 @@
     else if (btn.dataset.set) setAngle(id, Number(btn.dataset.set), true);
   });
 
-  el.send.addEventListener("click", function () {
+  function submitCmd() {
     var v = el.cmd.value.trim();
     if (!v) return;
     send(v);
@@ -826,7 +1196,9 @@
     if (history.length > 30) history.shift();
     historyIndex = history.length;
     el.cmd.value = "";
-  });
+  }
+
+  el.send.addEventListener("click", submitCmd);
 
   el.cmd.addEventListener("keydown", function (e) {
     if (e.key === "ArrowUp") {
@@ -840,6 +1212,9 @@
       e.preventDefault();
       historyIndex = Math.min(history.length, historyIndex + 1);
       el.cmd.value = historyIndex >= history.length ? "" : history[historyIndex];
+    } else if (e.key === "Enter" || e.keyCode === 13) {
+      e.preventDefault();
+      submitCmd();
     }
   });
 
@@ -1297,15 +1672,29 @@
   [1, 2].forEach(paint);
   setConnected(false);
 
+  if (location.protocol === "http:" || location.protocol === "https:") {
+    el.wifiUrl.value = location.host;
+    if (location.protocol === "http:" && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
+      el.linkMode.value = "wifi";
+      el.linkMode.dispatchEvent(new Event("change"));
+    }
+  } else {
+    el.wifiUrl.value = "mega.local";
+  }
+
   cloud.url = loadCfg("url", CLOUD_DEFAULT_URL);
   cloud.path = loadCfg("path", "manipulator");
   cloudSetStatus("off");
   if (loadCfg("on", "0") === "1") setTimeout(cloudConnect, 250);
 
   if (!("serial" in navigator)) {
-    el.connect.disabled = true;
-    setConnected(false, "Браузер без Web Serial");
-    logLine("Web Serial недоступен: нужен Chrome, Edge или Opera на компьютере. Через облако страница работает и без него.", "err");
+    el.connect.disabled = el.linkMode.value !== "wifi";
+    if (el.linkMode.value !== "wifi") {
+      setConnected(false, "Браузер без Web Serial");
+      logLine("Web Serial недоступен: нужен Chrome, Edge или Opera на компьютере. По Wi-Fi страница работает в любом браузере.", "err");
+    } else {
+      logLine("В этом браузере нет Web Serial — доступен режим Wi-Fi.", "sys");
+    }
   }
 })();
 </script>
